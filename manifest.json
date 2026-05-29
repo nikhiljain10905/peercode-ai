@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "PeerCode AI",
+  "version": "1.0",
+  "description": "Analyze and compare your Codeforces CP submissions with peers.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Open PeerCode AI"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.codeforces.com/*"
+  ]
+}
