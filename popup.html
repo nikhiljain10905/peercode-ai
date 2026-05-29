@@ -21,6 +21,16 @@
             font-size: 13px;
             color: #4b5563;
         }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            box-sizing: border-box; 
+        }
         button {
             width: 100%;
             padding: 10px;
@@ -30,7 +40,6 @@
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
-            margin-top: 15px;
         }
         button:hover {
             background-color: #2563eb;
@@ -39,8 +48,12 @@
 </head>
 <body>
     <h2>🚀 PeerCode AI</h2>
-    <p>Open a Codeforces submission page to analyze complexity and cleanliness.</p>
+    <p>Analyze complexity and cleanliness of your Codeforces submissions against your peers.</p>
+    
+    <input type="text" id="cfHandle" placeholder="Enter your CF Handle (e.g., tourist)">
     
     <button id="analyzeBtn">Analyze Code</button>
+    
+    <script src="popup.js"></script>
 </body>
 </html>
