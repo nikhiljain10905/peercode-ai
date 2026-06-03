@@ -21,15 +21,20 @@
             font-size: 13px;
             color: #4b5563;
         }
-        
         input[type="text"] {
             width: 100%;
             padding: 8px;
             margin-top: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             border: 1px solid #d1d5db;
             border-radius: 4px;
-            box-sizing: border-box; 
+            box-sizing: border-box;
+        }
+        .small-label {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 10px;
+            display: block;
         }
         button {
             width: 100%;
@@ -40,6 +45,7 @@
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
+            margin-top: 5px;
         }
         button:hover {
             background-color: #2563eb;
@@ -48,9 +54,12 @@
 </head>
 <body>
     <h2>🚀 PeerCode AI</h2>
-    <p>Analyze complexity and cleanliness of your Codeforces submissions against your peers.</p>
+    <p>Compare your CF submissions against your peers.</p>
     
-    <input type="text" id="cfHandle" placeholder="Enter your CF Handle (e.g., tourist)">
+    <input type="text" id="cfHandle" placeholder="Your CF Handle (e.g., tourist)">
+    
+    <input type="text" id="friendsHandles" placeholder="Friend1, Friend2, ... (Max 5)">
+    <span class="small-label">Enter up to 5 friends (comma separated)</span>
     
     <button id="analyzeBtn">Analyze Code</button>
     

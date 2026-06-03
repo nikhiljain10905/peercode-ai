@@ -1,108 +1,152 @@
 document.addEventListener("DOMContentLoaded", () => {
     const analyzeBtn = document.getElementById("analyzeBtn");
     const handleInput = document.getElementById("cfHandle");
+    const friendsInput = document.getElementById("friendsHandles");
 
-    // FIX 1: Chrome Storage se handle read karna (Asynchronous hota hai)
-    chrome.storage.local.get(["cfHandle"], (result) => {
-        if (result.cfHandle) {
-            handleInput.value = result.cfHandle;
-        }
+    chrome.storage.local.get(["cfHandle", "friendsHandles"], (result) => {
+        if (result.cfHandle) handleInput.value = result.cfHandle;
+        if (result.friendsHandles) friendsInput.value = result.friendsHandles;
     });
+
+    // Helper 1: Check if a user has solved the problem
+    async function getAcceptedSubmissionId(targetHandle, contestId, index) {
+        try {
+            const res = await fetch(`https://codeforces.com/api/user.status?handle=${targetHandle}&from=1&count=50`);
+            const data = await res.json();
+            if (data.status !== "OK") return null;
+            const accepted = data.result.find(sub => 
+                sub.problem.contestId == contestId && sub.problem.index == index && sub.verdict === "OK"
+            );
+            return accepted ? accepted.id : null;
+        } catch {
+            return null;
+        }
+    }
+
+    // Helper 2: The Ghost Tab Scraper
+    // Naya helper function: Code ko thodi der rokne ke liye
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    // Updated Helper 2: The Ghost Tab Scraper with Delay
+    async function scrapeWithGhostTab(contestId, subId) {
+        return new Promise((resolve) => {
+            const url = `https://codeforces.com/contest/${contestId}/submission/${subId}`;
+            chrome.tabs.create({ url: url, active: false }, (newTab) => {
+                chrome.tabs.onUpdated.addListener(async function listener(tabId, info) {
+                    if (tabId === newTab.id && info.status === 'complete') {
+                        chrome.tabs.onUpdated.removeListener(listener);
+                        
+                        // FIX: Page load hone ke baad 1.5 seconds (1500ms) ka wait taaki code render ho jaye
+                        await sleep(1500); 
+                        
+                        chrome.scripting.executeScript({
+                            target: { tabId: newTab.id },
+                            func: () => {
+                                const el = document.getElementById("program-source-text");
+                                return el ? el.innerText : null;
+                            }
+                        }, (results) => {
+                            chrome.tabs.remove(newTab.id);
+                            resolve(results && results[0] ? results[0].result : null);
+                        });
+                    }
+                });
+            });
+        });
+    }
 
     analyzeBtn.addEventListener("click", async () => {
         const handle = handleInput.value.trim();
+        const friendsRaw = friendsInput.value.trim();
+        
         if (!handle) {
-            alert("Bhai, pehle apna Codeforces Handle toh daal!");
+            alert("Bhai, apna CF Handle toh daalo!");
             return;
         }
 
-        // FIX 2: Chrome Storage mein handle save karna
-        chrome.storage.local.set({ "cfHandle": handle });
+        let friendsArray = friendsRaw.split(",").map(f => f.trim()).filter(f => f.length > 0).slice(0, 5); 
+        chrome.storage.local.set({ "cfHandle": handle, "friendsHandles": friendsArray.join(", ") });
 
-        // 1. UI ko Loading state mein daalo
-        analyzeBtn.innerText = "Checking CF API...";
+        analyzeBtn.innerText = "Checking problem details...";
         analyzeBtn.style.backgroundColor = "#9ca3af"; 
         analyzeBtn.disabled = true;
 
         let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-        // 2. URL se Contest ID aur Problem Index nikalna
         let problemMatch = tab.url.match(/contest\/(\d+)\/problem\/([A-Za-z0-9]+)/) || 
                            tab.url.match(/problemset\/problem\/(\d+)\/([A-Za-z0-9]+)/);
 
         if (!problemMatch) {
             alert("Error: Please open a specific Codeforces problem page!");
-            resetButton();
-            return;
+            resetButton(); return;
         }
 
         const contestId = problemMatch[1];
         const index = problemMatch[2];
 
-        // 3. Codeforces API Call
         try {
-            const response = await fetch(`https://codeforces.com/api/user.status?handle=${handle}&from=1&count=50`);
-            const data = await response.json();
-
-            if (data.status !== "OK") {
-                alert("Codeforces API Error. Handle check karo ya API down hai.");
-                resetButton();
-                return;
-            }
-
-            // 4. Check for "OK" verdict
-            const submissions = data.result;
-            const acceptedSubmission = submissions.find(sub => 
-                sub.problem.contestId == contestId && 
-                sub.problem.index == index && 
-                sub.verdict === "OK"
-            );
-
-            if (acceptedSubmission) {
-                // SUCCESS: Backend Server Call
-                analyzeBtn.innerText = "Accepted! Sending to AI...";
-                analyzeBtn.style.backgroundColor = "#10b981"; 
-                
-                try {
-                    const aiResponse = await fetch("http://127.0.0.1:5000/analyze", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            handle: handle,
-                            problem_id: `${contestId}${index}`,
-                            submission_id: acceptedSubmission.id
-                        })
-                    });
-
-                    const aiData = await aiResponse.json();
-                    
-                    if(aiData.status === "success") {
-                        alert(aiData.summary); 
-                        analyzeBtn.innerText = "Analysis Complete!";
-                    } else {
-                        alert("Backend logic failed: " + aiData.message);
-                        resetButton();
-                    }
-                } catch (backendError) {
-                    alert("Backend server is not running! VS Code mein 'python app.py' chalao.");
-                    resetButton();
-                }
-
-            } else {
-                // FAILED: Not accepted yet
+            // 1. Process Main User
+            analyzeBtn.innerText = "Validating your submission...";
+            const userSubId = await getAcceptedSubmissionId(handle, contestId, index);
+            
+            if (!userSubId) {
                 analyzeBtn.innerText = "Make your correct submission first";
                 analyzeBtn.style.backgroundColor = "#ef4444"; 
+                return; // Stop here if main user hasn't solved it
+            }
+
+            analyzeBtn.innerText = "Scraping your code...";
+            const userCode = await scrapeWithGhostTab(contestId, userSubId);
+            
+            if (!userCode) {
+                alert("Failed to scrape your code.");
+                resetButton(); return;
+            }
+
+            // 2. Process Friends
+            let friendsCodes = {};
+            for (let friend of friendsArray) {
+                analyzeBtn.innerText = `Checking ${friend}...`;
+                const friendSubId = await getAcceptedSubmissionId(friend, contestId, index);
+                
+                if (friendSubId) {
+                    analyzeBtn.innerText = `Scraping ${friend}...`;
+                    const fCode = await scrapeWithGhostTab(contestId, friendSubId);
+                    if (fCode) friendsCodes[friend] = fCode;
+                }
+            }
+
+            // 3. Send Everything to AI
+            analyzeBtn.innerText = "Asking Gemini AI...";
+            analyzeBtn.style.backgroundColor = "#10b981"; 
+
+            const aiResponse = await fetch("http://127.0.0.1:5000/analyze", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    handle: handle,
+                    problem_id: `${contestId}${index}`,
+                    user_code: userCode,
+                    friends_codes: friendsCodes
+                })
+            });
+
+            const aiData = await aiResponse.json();
+            
+            if(aiData.status === "success") {
+                alert("PeerCode Analysis:\n\n" + aiData.summary); 
+                analyzeBtn.innerText = "Analysis Complete!";
+            } else {
+                alert("Backend Error: " + aiData.message);
+                resetButton();
             }
 
         } catch (error) {
-            alert("Network Error while connecting to Codeforces API.");
+            console.error(error);
+            alert("Unexpected Error Occurred.");
             resetButton();
         }
     });
 
-    // Helper function
     function resetButton() {
         analyzeBtn.innerText = "Analyze Code";
         analyzeBtn.style.backgroundColor = "#3b82f6";
