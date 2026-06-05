@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
             analyzeBtn.innerText = "Asking Gemini AI...";
             analyzeBtn.style.backgroundColor = "#10b981"; 
 
-            const aiResponse = await fetch("http://127.0.0.1:5000/analyze", {
+            const aiResponse = await fetch("https://peercode-ai.onrender.com/analyze", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
