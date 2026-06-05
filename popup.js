@@ -2,7 +2,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const analyzeBtn = document.getElementById("analyzeBtn");
     const handleInput = document.getElementById("cfHandle");
     const friendsInput = document.getElementById("friendsHandles");
+    const forceLiveCheckbox = document.getElementById("forceLive"); // Naya Checkbox
 
+    // Load saved handles from Chrome Storage
     chrome.storage.local.get(["cfHandle", "friendsHandles"], (result) => {
         if (result.cfHandle) handleInput.value = result.cfHandle;
         if (result.friendsHandles) friendsInput.value = result.friendsHandles;
@@ -23,11 +25,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Helper 2: The Ghost Tab Scraper
     // Naya helper function: Code ko thodi der rokne ke liye
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-    // Updated Helper 2: The Ghost Tab Scraper with Delay
+    // Helper 2: The Ghost Tab Scraper with Delay
     async function scrapeWithGhostTab(contestId, subId) {
         return new Promise((resolve) => {
             const url = `https://codeforces.com/contest/${contestId}/submission/${subId}`;
@@ -36,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (tabId === newTab.id && info.status === 'complete') {
                         chrome.tabs.onUpdated.removeListener(listener);
                         
-                        // FIX: Page load hone ke baad 1.5 seconds (1500ms) ka wait taaki code render ho jaye
+                        // FIX: Page load hone ke baad 1.5 seconds (1500ms) ka wait
                         await sleep(1500); 
                         
                         chrome.scripting.executeScript({
@@ -58,6 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
     analyzeBtn.addEventListener("click", async () => {
         const handle = handleInput.value.trim();
         const friendsRaw = friendsInput.value.trim();
+        const isForceLive = forceLiveCheckbox ? forceLiveCheckbox.checked : false; // Checkbox State
         
         if (!handle) {
             alert("Bhai, apna CF Handle toh daalo!");
@@ -126,16 +128,26 @@ document.addEventListener("DOMContentLoaded", () => {
                     handle: handle,
                     problem_id: `${contestId}${index}`,
                     user_code: userCode,
-                    friends_codes: friendsCodes
+                    friends_codes: friendsCodes,
+                    force_live: isForceLive // Naya addition backend ke liye
                 })
             });
 
             const aiData = await aiResponse.json();
             
             if(aiData.status === "success") {
-                alert("PeerCode Analysis:\n\n" + aiData.summary); 
-                analyzeBtn.innerText = "Analysis Complete!";
-            } else {
+                // Data ko Chrome storage mein save karo
+                chrome.storage.local.set({
+                    "latestAnalysis": aiData.summary,
+                    "analysisSource": aiData.source
+                }, () => {
+                    // Alert hatakar naya full-screen tab khol do
+                    chrome.tabs.create({ url: chrome.runtime.getURL("result.html") });
+                });
+        
+                analyzeBtn.innerText = "Opening Results...";
+            } 
+            else {
                 alert("Backend Error: " + aiData.message);
                 resetButton();
             }
