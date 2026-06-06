@@ -1,10 +1,16 @@
 # 🚀 PeerCode AI
 
-**An AI-Powered Tech Interviewer & Peer Analyzer for Codeforces**
+**An AI-Powered Tech Mentor & Peer Analyzer for Codeforces**
 
 Ever wished you had an expert mentor to review your competitive programming code, compare it with your friends, and tell you exactly how to improve? That's exactly what PeerCode does. 
 
-It is a Chrome Extension and backend ecosystem that analyzes your Codeforces submissions, seamlessly extracts code, and uses Google's Gemini AI to break down your Time/Space complexity just like a real tech interview.
+It is a Chrome Extension and backend ecosystem that analyzes your Codeforces submissions, seamlessly extracts code, and uses Google's Gemini AI to break down your Time/Space complexity just like a real expert code review.
+
+---
+
+### 🎥 See it in Action
+https://github.com/user-attachments/assets/44530202-a8f6-4da1-9a9f-89ac44f8dcae
+
 
 ---
 
@@ -52,24 +58,6 @@ CREATE TABLE analysis_cache (
     ai_summary TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-```
-
-### 2. Backend Setup
-Clone the repository and install the required Python dependencies:
-```bash
-pip install -r requirements.txt
-```
-Create a `.env` file in the root directory to store your credentials safely:
-```env
-GEMINI_API_KEY=your_gemini_api_key
-DB_HOST=127.0.0.1
-DB_USER=root
-DB_PASSWORD=your_mysql_password
-DB_NAME=peercode_db
-```
-Start the local Flask server:
-```bash
-python app.py
 ```
 
 ### 3. Extension Setup
